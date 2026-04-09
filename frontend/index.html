@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PartPulse Order Management v2.6.3</title>
+    <title>PartPulse Orders v3.0</title>
     <link rel="stylesheet" href="styles.css">
     <!-- File Upload Enhancement Styles -->
     <link rel="stylesheet" href="css/order-form-enhanced.css">
     <link rel="stylesheet" href="documents.css">
     <link rel="stylesheet" href="approvals.css">
     <link rel="stylesheet" href="brand-training.css">
-    <!-- ⭐ Smart Quote Send Panel -->
+    <!-- Smart Quote Send Panel -->
     <link rel="stylesheet" href="quote-send.css">
     <!-- Analytics Module -->
     <link rel="stylesheet" href="analytics.css">
-    <!-- ⭐ NEW: Intelligent Autocomplete -->
+    <!-- Intelligent Autocomplete -->
     <link rel="stylesheet" href="css/intelligent-autocomplete.css">
+    <!-- World-Class Upgrade Styles -->
+    <link rel="stylesheet" href="css/world-class-upgrade.css">
     <script src="upload-progress.js"></script>
     <script src="analytics-cache.js"></script>
     <script src="analytics-charts.js"></script>
@@ -23,7 +25,15 @@
     <script src="analytics-forecasting.js"></script>
     <script src="analytics-export.js"></script>
     <script src="analytics.js"></script>
-    
+    <!-- World-Class Upgrade Scripts -->
+    <script src="toast.js"></script>
+    <script src="global-search.js"></script>
+    <script src="notifications.js"></script>
+    <script src="keyboard-shortcuts.js"></script>
+    <script src="export-manager.js"></script>
+    <script src="advanced-filters.js"></script>
+    <script src="dashboard-widgets.js"></script>
+
 </head>
 <body>
 <div id="app">
@@ -57,29 +67,117 @@
     <div id="dashboardScreen" class="screen hidden">
         <header>
             <div class="container header-row">
-                <div>
-                    <h1>PartPulse Orders v2.6.3</h1>
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <h1>PartPulse Orders</h1>
                     <div id="userRole" class="badge-role"></div>
                 </div>
-                <div class="user-info">
-                    <span id="userName"></span>
-                    <!-- Language Selector in Header -->
-                    <select id="languageSelector" class="form-control" style="width: auto; margin: 0 0.5rem; font-size: 0.85rem;">
-                        <option value="bg">🇧🇬 BG</option>
-                        <option value="en">🇬🇧 EN</option>
+                <div class="header-actions">
+                    <!-- Global Search Trigger -->
+                    <button id="globalSearchTrigger" class="global-search-trigger">
+                        <span class="nav-icon">🔍</span>
+                        <span>Search...</span>
+                        <span class="search-shortcut">Ctrl+K</span>
+                    </button>
+                    <!-- Notification Bell -->
+                    <div style="position:relative;">
+                        <button id="notificationBell" class="notification-bell" title="Notifications">
+                            🔔
+                            <span id="bellBadge" class="bell-badge hidden">0</span>
+                        </button>
+                        <div id="notificationDropdown" class="notification-dropdown hidden">
+                            <div class="notification-dropdown-header">
+                                <h4>Notifications</h4>
+                                <button id="markAllRead" class="btn-link btn-sm">Mark all read</button>
+                            </div>
+                            <div id="notificationDropdownBody" class="notification-dropdown-body">
+                                <div class="notification-empty">No notifications</div>
+                            </div>
+                        </div>
+                    </div>
+                    <span id="userName" style="font-size:0.88rem;"></span>
+                    <select id="languageSelector" class="form-control" style="width: auto; font-size: 0.8rem; padding: 0.25rem 0.4rem;">
+                        <option value="bg">BG</option>
+                        <option value="en">EN</option>
                     </select>
-                    <button id="logoutBtn" class="btn btn-secondary" data-i18n="nav.logout">Logout</button>
+                    <button id="logoutBtn" class="btn btn-secondary btn-sm" data-i18n="nav.logout">Logout</button>
                 </div>
             </div>
         </header>
 
-        <div class="container">
-            <!-- Tabs for admin/procurement -->
-            <div id="navTabs" class="tabs hidden">
+        <div class="app-layout">
+            <!-- Sidebar Navigation (Desktop) -->
+            <nav id="sidebarNav" class="sidebar-nav hidden">
+                <div class="nav-section-label">Main</div>
+                <button class="nav-item active" data-tab="ordersTab">
+                    <span class="nav-icon">📦</span>
+                    <span data-i18n="nav.orders">Orders</span>
+                </button>
+                <button class="nav-item" data-tab="quotesTab">
+                    <span class="nav-icon">📄</span>
+                    <span data-i18n="nav.quotes">Quotes</span>
+                </button>
+                <button class="nav-item" data-tab="approvalsTab" id="sidebarApprovalsBtn" hidden>
+                    <span class="nav-icon">✅</span>
+                    <span data-i18n="nav.approvals">Approvals</span>
+                    <span id="sidebarApprovalBadge" class="nav-badge hidden">0</span>
+                </button>
+                <button class="nav-item" data-tab="suppliersTab">
+                    <span class="nav-icon">🏢</span>
+                    <span data-i18n="nav.suppliers">Suppliers</span>
+                </button>
+
+                <div class="nav-divider"></div>
+                <div class="nav-section-label">Analytics</div>
+                <button class="nav-item" data-tab="analyticsTab" id="sidebarAnalyticsBtn" hidden>
+                    <span class="nav-icon">📈</span>
+                    <span data-i18n="nav.analytics">Analytics</span>
+                </button>
+
+                <div class="nav-divider" id="sidebarAdminDivider" hidden></div>
+                <div class="nav-section-label" id="sidebarAdminLabel" hidden>Admin</div>
+                <button class="nav-item" data-tab="buildingsTab" id="sidebarBuildingsBtn" hidden>
+                    <span class="nav-icon">🏗</span>
+                    <span data-i18n="nav.buildings">Buildings</span>
+                </button>
+                <button class="nav-item" data-tab="costCentersTab" id="sidebarCostCentersBtn" hidden>
+                    <span class="nav-icon">💰</span>
+                    <span data-i18n="nav.costCenters">Cost Centers</span>
+                </button>
+                <button class="nav-item" data-tab="usersTab" id="sidebarUsersBtn" hidden>
+                    <span class="nav-icon">👥</span>
+                    <span data-i18n="nav.users">Users</span>
+                </button>
+            </nav>
+
+            <!-- Mobile Bottom Navigation -->
+            <nav class="mobile-bottom-nav" id="mobileBottomNav">
+                <div class="mobile-nav-items">
+                    <button class="mobile-nav-item active" data-tab="ordersTab">
+                        <span class="nav-icon">📦</span><span>Orders</span>
+                    </button>
+                    <button class="mobile-nav-item" data-tab="quotesTab">
+                        <span class="nav-icon">📄</span><span>Quotes</span>
+                    </button>
+                    <button class="mobile-nav-item" data-tab="approvalsTab" id="mobileApprovalsBtn" hidden>
+                        <span class="nav-icon">✅</span><span>Approvals</span>
+                    </button>
+                    <button class="mobile-nav-item" data-tab="analyticsTab" id="mobileAnalyticsBtn" hidden>
+                        <span class="nav-icon">📈</span><span>Analytics</span>
+                    </button>
+                    <button class="mobile-nav-item" data-tab="suppliersTab">
+                        <span class="nav-icon">🏢</span><span>More</span>
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Main Content Area -->
+            <div class="main-content">
+
+            <!-- Legacy tabs (hidden, replaced by sidebar) -->
+            <div id="navTabs" class="tabs hidden" style="display:none !important;">
                 <button class="tab active" data-tab="ordersTab" data-i18n="nav.orders">Orders</button>
                 <button class="tab" data-tab="quotesTab" data-i18n="nav.quotes">Quotes</button>
-                <button class="tab" data-tab="approvalsTab" id="approvalsTabButton" hidden style="position: relative;" data-i18n="nav.approvals">
-                    Approvals
+                <button class="tab" data-tab="approvalsTab" id="approvalsTabButton" hidden data-i18n="nav.approvals">Approvals
                     <span id="pendingApprovalBadge" class="badge-notification hidden"></span>
                 </button>
                 <button class="tab" data-tab="suppliersTab" data-i18n="nav.suppliers">Suppliers</button>
@@ -87,7 +185,6 @@
                 <button class="tab" data-tab="costCentersTab" id="costCentersTabButton" hidden data-i18n="nav.costCenters">Cost Centers</button>
                 <button class="tab" data-tab="usersTab" id="usersTabButton" hidden data-i18n="nav.users">Users</button>
                 <button class="tab" data-tab="analyticsTab" id="analyticsTabButton" hidden data-i18n="nav.analytics">Analytics</button>
-                <!-- ⭐ ENHANCEMENT #1: Create Order Button -->
                 <button id="btnProcurementCreateOrder" class="btn btn-primary" style="margin-left: auto;" hidden>➕ Create Order</button>
             </div>
 
@@ -159,6 +256,9 @@
                 </form>
             </section>
 
+            <!-- Dashboard Summary Cards -->
+            <div id="dashboardSummary"></div>
+
             <!-- Orders Tab -->
             <section id="ordersTab" class="tab-content active">
                <div class="card">
@@ -166,58 +266,100 @@
                         <h2 data-i18n="orders.title">Orders</h2>
                         <div class="order-actions" id="orderActionsContainer">
                             <div class="view-mode-toggle">
-                                <button id="btnViewFlat" class="btn-view-mode active" data-i18n="orders.view.flat" title="Flat list view">☰</button>
-                                <button id="btnViewGrouped" class="btn-view-mode" data-i18n="orders.view.grouped" title="Group by status">⊞</button>
+                                <button id="btnViewFlat" class="btn-view-mode active" title="Flat list view">☰</button>
+                                <button id="btnViewGrouped" class="btn-view-mode" title="Group by status">⊞</button>
                             </div>
+                            <!-- Table Density Toggle -->
+                            <div class="density-toggle">
+                                <button class="btn-density" data-density="compact" title="Compact">S</button>
+                                <button class="btn-density active" data-density="comfortable" title="Comfortable">M</button>
+                                <button class="btn-density" data-density="spacious" title="Spacious">L</button>
+                            </div>
+                            <!-- Export Dropdown -->
+                            <div class="export-dropdown">
+                                <button id="btnExport" class="btn btn-secondary btn-sm">Export ▾</button>
+                                <div id="exportMenu" class="export-dropdown-menu hidden">
+                                    <button class="export-option" id="exportCSV">📊 Export CSV</button>
+                                    <button class="export-option" id="exportPDF">📄 Export PDF</button>
+                                </div>
+                            </div>
+                            <button id="btnProcurementCreateOrder2" class="btn btn-primary btn-sm" hidden>➕ New Order</button>
                             <div id="orderActionsBar" class="order-actions-inner" hidden>
                                 <span id="selectedCount" class="badge-muted">0 <span data-i18n="orders.selected">selected</span></span>
-                                <button id="btnCreateQuote" class="btn btn-primary btn-sm" data-i18n="orders.actions.createQuote">Create Quote from Selected</button>
+                                <button id="btnCreateQuote" class="btn btn-primary btn-sm" data-i18n="orders.actions.createQuote">Create Quote</button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Smart Filters (visible to all roles) -->
+                    <!-- Saved Filter Presets -->
+                    <div id="savedFiltersRow" class="saved-filters-row"></div>
+
+                    <!-- Smart Filters -->
                     <div class="filters-container">
                         <!-- Quick Filter Chips -->
-                        <div class="quick-filters filters-bar" style="display: flex; align-items: center; flex-wrap: wrap;">
-                            <button class="quick-filter-chip" data-filter="late" data-i18n="orders.quickFilter.late">⚠ Late</button>
-                            <button class="quick-filter-chip" data-filter="due7" data-i18n="orders.quickFilter.due7">🕒 Due in 7d</button>
-                            <button class="quick-filter-chip" data-filter="due14" data-i18n="orders.quickFilter.due14">📅 Due in 14d</button>
-                            <button class="quick-filter-chip" data-filter="new" data-i18n="orders.quickFilter.new">🆕 New</button>
-                            <button class="quick-filter-chip" data-filter="ordered" data-i18n="orders.quickFilter.ordered">📦 Ordered</button>
-                            <button class="quick-filter-chip" data-filter="transit" data-i18n="orders.quickFilter.transit">🚚 In Transit</button>
+                        <div class="quick-filters filters-bar" style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem;">
+                            <button class="quick-filter-chip" data-filter="late">⚠ Late</button>
+                            <button class="quick-filter-chip" data-filter="due7">🕒 Due 7d</button>
+                            <button class="quick-filter-chip" data-filter="due14">📅 Due 14d</button>
+                            <button class="quick-filter-chip" data-filter="new">🆕 New</button>
+                            <button class="quick-filter-chip" data-filter="ordered">📦 Ordered</button>
+                            <button class="quick-filter-chip" data-filter="transit">🚚 In Transit</button>
+                            <button class="quick-filter-chip" data-filter="myorders">👤 My Orders</button>
+                            <button class="quick-filter-chip" data-filter="today">📌 Today</button>
                         </div>
 
                         <!-- Detailed Filters -->
                         <div class="filters-grid">
-                            <input type="text" id="filterSearch" class="form-control form-control-sm" data-i18n="orders.search">
+                            <input type="text" id="filterSearch" class="form-control form-control-sm" placeholder="🔍 Search orders...">
                             <select id="filterStatus" class="form-control form-control-sm">
-                                <option value="" data-i18n="orders.filter.status">Status: All</option>
+                                <option value="">Status: All</option>
                             </select>
                             <select id="filterBuilding" class="form-control form-control-sm">
-                                <option value="" data-i18n="orders.filter.building">Building: All</option>
+                                <option value="">Building: All</option>
                             </select>
                             <select id="filterPriority" class="form-control form-control-sm">
-                                <option value="" data-i18n="orders.filter.priority">Priority: All</option>
+                                <option value="">Priority: All</option>
                                 <option value="Low">Low</option>
-                                <option value="Normal" data-i18n="order.create.priority.normal">Normal</option>
+                                <option value="Normal">Normal</option>
                                 <option value="High">High</option>
-                                <option value="Urgent" data-i18n="order.create.priority.urgent">Urgent</option>
+                                <option value="Urgent">Urgent</option>
                             </select>
                             <select id="filterSupplier" class="form-control form-control-sm">
-                                <option value="" data-i18n="orders.filter.supplier">Supplier: All</option>
+                                <option value="">Supplier: All</option>
                             </select>
                             <select id="filterDelivery" class="form-control form-control-sm">
-                                <option value="" data-i18n="orders.filter.delivery">Delivery: All</option>
-                                <option value="late" data-i18n="orders.quickFilter.late">Late</option>
-                                <option value="due7" data-i18n="orders.quickFilter.due7">Due in 7 days</option>
-                                <option value="due14" data-i18n="orders.quickFilter.due14">Due in 14 days</option>
+                                <option value="">Delivery: All</option>
+                                <option value="late">Late</option>
+                                <option value="due7">Due in 7 days</option>
+                                <option value="due14">Due in 14 days</option>
                                 <option value="ontrack">On Track</option>
                             </select>
+                            <!-- Date Range Filters -->
+                            <div class="date-range-group">
+                                <label>From</label>
+                                <input type="date" id="filterDateFrom" class="form-control form-control-sm date-picker">
+                            </div>
+                            <div class="date-range-group">
+                                <label>To</label>
+                                <input type="date" id="filterDateTo" class="form-control form-control-sm date-picker">
+                            </div>
                         </div>
-                        <div class="filters-actions">
+                        <div class="filters-actions" style="display:flex;justify-content:space-between;align-items:center;">
+                            <button id="btnSaveFilter" class="btn-save-filter">💾 Save Filter</button>
                             <button id="btnClearFilters" class="btn-link btn-sm" data-i18n="orders.filter.clear">Clear All Filters</button>
                         </div>
+                    </div>
+
+                    <!-- Active Filter Chips -->
+                    <div id="activeFiltersBar" class="active-filters-bar hidden"></div>
+
+                    <!-- Bulk Actions Bar -->
+                    <div id="bulkActionsBar" class="bulk-actions-bar hidden">
+                        <span class="bulk-count" id="bulkCount">0 selected</span>
+                        <button class="bulk-btn" id="bulkExportCSV">Export CSV</button>
+                        <button class="bulk-btn" id="bulkCreateQuote">Create Quote</button>
+                        <button class="bulk-btn" id="bulkChangeStatus">Change Status</button>
+                        <button class="bulk-btn" onclick="selectedOrderIds.clear();updateSelectionUi();renderOrdersTable();">Deselect All</button>
                     </div>
 
                     <div id="ordersTable"></div>
@@ -535,11 +677,12 @@
                     </div>
                 </div>
             </section>
-        </div>
+        </div><!-- /.main-content -->
+        </div><!-- /.app-layout -->
     </div>
 </div>
 
-<!-- ⭐ Smart Quote Send Panel -->
+<!-- Smart Quote Send Panel -->
 <div id="quoteSendPanel" class="quote-send-panel hidden"></div>
 
 <!-- ⭐ ENHANCEMENT #2: Procurement Create Order Modal (ENHANCED) -->

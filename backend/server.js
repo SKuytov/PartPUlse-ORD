@@ -20,6 +20,10 @@ const approvalsRoutes = require('./routes/approvals');
 const autocompleteRoutes = require('./routes/autocomplete');
 const testRoutes = require('./routes/test');
 const analyticsRoutes = require('./routes/analytics');
+const notificationsRoutes = require('./routes/notifications');
+const commentsRoutes = require('./routes/comments');
+const savedFiltersRoutes = require('./routes/savedFilters');
+const equipmentRoutes = require('./routes/equipment');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -55,6 +59,10 @@ app.use('/api/approvals', approvalsRoutes);
 app.use('/api/autocomplete', autocompleteRoutes); // ⭐ NEW: Intelligent autocomplete
 app.use('/api/test', testRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/comments', commentsRoutes);
+app.use('/api/saved-filters', savedFiltersRoutes);
+app.use('/api/equipment', equipmentRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -85,7 +93,7 @@ app.listen(PORT, () => {
     console.log(`PartPulse Orders Server v2.6.0 running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
     console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
-    console.log(`Features: Smart Quote Send + Smart Autocomplete + Document Management + Approvals + Procurement`);
+    console.log(`Features: World-Class Upgrade v3.0 — Full UI/UX + Notifications + Equipment + Comments + Search`);
 });
 
 module.exports = app;
