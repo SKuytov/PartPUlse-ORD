@@ -595,7 +595,12 @@ function showDashboard() {
     const mobileAnalyticsBtn = document.getElementById('mobileAnalyticsBtn');
     const btnProcCreate2 = document.getElementById('btnProcurementCreateOrder2');
 
-    if (currentUser.role === 'requester') {
+    // Phase 2: Check for multi-role access
+    const hasAdminAccess = currentUser.role === 'admin' || currentUser.is_super_admin || (currentUser.roles && currentUser.roles.includes('admin'));
+    const hasProcAccess = currentUser.role === 'procurement' || hasAdminAccess || (currentUser.roles && currentUser.roles.includes('procurement'));
+    const isRequesterOnly = currentUser.role === 'requester' && !hasAdminAccess && !hasProcAccess && (!currentUser.roles || currentUser.roles.length === 0 || (currentUser.roles.length === 1 && currentUser.roles[0] === 'requester'));
+
+    if (isRequesterOnly) {
         // REQUESTER: Show order creation form, hide navigation
         createOrderSection.classList.remove('hidden');
         requesterBuildingBadge.textContent = `Building ${currentUser.building}`;
@@ -642,7 +647,7 @@ function showDashboard() {
         if (sidebarApprovalsBtn) sidebarApprovalsBtn.hidden = false;
         if (mobileApprovalsBtn) mobileApprovalsBtn.hidden = false;
 
-        if (currentUser.role === 'admin') {
+        if (currentUser.role === 'admin' || currentUser.is_super_admin) {
             if (usersTabButton) usersTabButton.hidden = false;
             if (buildingsTabButton) buildingsTabButton.hidden = false;
             if (costCentersTabButton) costCentersTabButton.hidden = false;
@@ -653,6 +658,12 @@ function showDashboard() {
             if (sidebarAdminLabel) sidebarAdminLabel.hidden = false;
             const sidebarAuditLogBtn = document.getElementById('sidebarAuditLogBtn');
             if (sidebarAuditLogBtn) sidebarAuditLogBtn.hidden = false;
+
+            // Phase 2: Show user management for super admin
+            if (currentUser.is_super_admin) {
+                const umCard = document.getElementById('userManagementCard');
+                if (umCard) umCard.style.display = 'block';
+            }
         }
 
         // Show supplier scorecard for procurement/admin
@@ -697,12 +708,18 @@ function showDashboard() {
     loadBuildings();
     loadCostCenters();
     // ⭐ FIX: Only load suppliers for admin and procurement roles
-    if (currentUser.role === 'admin' || currentUser.role === 'procurement') {
+    if (currentUser.role === 'admin' || currentUser.role === 'procurement' ||
+        (currentUser.roles && (currentUser.roles.includes('procurement') || currentUser.roles.includes('admin')))) {
         loadSuppliers().then(() => { populateSupplierFilter(); });
     }
     loadOrders();
     if (currentUser.role !== 'requester') { loadQuotes(); }
-    if (currentUser.role === 'admin') { loadUsers(); }
+    if (currentUser.role === 'admin' || currentUser.is_super_admin) { loadUsers(); }
+
+    // Phase 2: Initialize procurement workflow features
+    if (window.Phase2) {
+        window.Phase2.init();
+    }
 }
 
 // API helpers
@@ -1338,7 +1355,13 @@ function renderOrderRow(order, canSelectOrders, isAdminView) {
         html += `<td><span class="status-badge ${statusClass}">${order.status}</span></td>`;
     }
     
-    html += `<td><span class="priority-pill ${priorityClass}">${order.priority || 'Normal'}</span></td>`;
+    html += `<td><span class="priority-pill ${priorityClass}">${order.priority || 'Normal'}</span>`;
+    // Phase 2: Claim & Help badges
+    if (window.Phase2) {
+        html += ' ' + Phase2.renderClaimBadge(order);
+        html += ' ' + Phase2.renderHelpBadge(order);
+    }
+    html += `</td>`;
     html += `<td>${hasFiles ? '📎 ' + order.files.length : '-'}</td>`;
 
     if (isAdminView) {
@@ -1571,6 +1594,17 @@ function renderOrderDetail(o) {
         html += `<div class="form-group"><label>Alternative Product Name</label><input type="text" id="detailAltProductName" class="form-control form-control-sm" placeholder="Alternative product name" value="${escapeHtml(o.alternative_product_name || '')}"></div>`;
         html += `<div class="form-group"><label>Alternative Product Description</label><textarea id="detailAltProductDesc" class="form-control form-control-sm" rows="2" placeholder="Description of the alternative product">${o.alternative_product_description || ''}</textarea></div>`;
         html += `<div class="form-actions"><button id="btnSaveOrder" class="btn btn-primary btn-sm">Save</button></div>`;
+    }
+
+    // Phase 2: Add claim banners, claim buttons, and CAD section
+    if (window.Phase2) {
+        html = Phase2.renderHelpBanner(o) + Phase2.renderClaimBanner(o) + html;
+        // Add claim action buttons
+        if (Phase2.isProcurement()) {
+            html += '<div style="margin-top:1rem;">' + Phase2.renderClaimButtons(o) + '</div>';
+        }
+        // Add CAD section
+        html += Phase2.renderCadSection(o);
     }
 
     orderDetailBody.innerHTML = html;
@@ -2024,7 +2058,14 @@ function switchTab(tabId) {
             }
         }
     }
-    
+
+    // Phase 2 tab loading
+    if (window.Phase2) {
+        if (tabId === 'procBoardTab') Phase2.loadProcurementBoard();
+        if (tabId === 'rfqHistoryTab') Phase2.loadRfqHistory();
+        if (tabId === 'cadTasksTab') Phase2.loadCadTasks();
+        if (tabId === 'systemSettingsTab') Phase2.loadSystemSettings();
+    }
 }
 
 function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c] || c)); }

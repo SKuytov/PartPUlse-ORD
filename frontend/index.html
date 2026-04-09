@@ -19,6 +19,8 @@
     <!-- World-Class Upgrade Styles -->
     <link rel="stylesheet" href="css/world-class-upgrade.css">
     <link rel="stylesheet" href="css/upgrade.css">
+    <!-- Phase 2: Procurement Workflow Styles -->
+    <link rel="stylesheet" href="css/phase2.css">
     <script src="upload-progress.js"></script>
     <script src="analytics-cache.js"></script>
     <script src="analytics-charts.js"></script>
@@ -706,6 +708,12 @@
 
             <!-- Users Tab (admin only) -->
             <section id="usersTab" class="tab-content hidden">
+                <!-- Phase 2: User Management (Super Admin) -->
+                <div class="card" id="userManagementCard" style="margin-bottom:1rem;display:none;">
+                    <div id="userManagementBody">
+                        <div style="padding:2rem;text-align:center;color:#94a3b8;">Loading user management...</div>
+                    </div>
+                </div>
                 <div class="grid-2">
                     <div class="card">
                         <div class="card-header-row">
@@ -764,6 +772,44 @@
                     </div>
                 </div>
             </section>
+            <!-- Phase 2: Procurement Board Tab -->
+            <section id="procBoardTab" class="tab-content hidden">
+                <div class="card">
+                    <div id="procBoardBody">
+                        <div style="padding:2rem;text-align:center;color:#94a3b8;">Loading procurement board...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Phase 2: RFQ History Tab -->
+            <section id="rfqHistoryTab" class="tab-content hidden">
+                <div class="card">
+                    <div id="rfqHistoryBody">
+                        <div style="padding:2rem;text-align:center;color:#94a3b8;">Loading RFQ history...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Phase 2: CAD Tasks Tab -->
+            <section id="cadTasksTab" class="tab-content hidden">
+                <div class="card">
+                    <div id="cadTasksBody">
+                        <div style="padding:2rem;text-align:center;color:#94a3b8;">Loading CAD tasks...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Phase 2: System Settings Tab (Super Admin only) -->
+            <section id="systemSettingsTab" class="tab-content hidden">
+                <div class="card">
+                    <div id="systemSettingsBody">
+                        <div style="padding:2rem;text-align:center;color:#94a3b8;">Loading system settings...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Phase 2: User Management (Super Admin, rendered inside usersTab) -->
+
         </div><!-- /.main-content -->
         </div><!-- /.app-layout -->
     </div>
@@ -1082,6 +1128,8 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <!-- World-Class Upgrade Module -->
 <script src="js/upgrade.js"></script>
+<!-- Phase 2: Procurement Workflow & Collaboration -->
+<script src="phase2.js"></script>
 
 <!-- ⭐ Language Selector Event Handlers -->
 <script>
