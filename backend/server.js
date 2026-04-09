@@ -20,10 +20,12 @@ const approvalsRoutes = require('./routes/approvals');
 const autocompleteRoutes = require('./routes/autocomplete');
 const testRoutes = require('./routes/test');
 const analyticsRoutes = require('./routes/analytics');
+const templateRoutes = require('./routes/templates');
 const notificationsRoutes = require('./routes/notifications');
-const commentsRoutes = require('./routes/comments');
-const savedFiltersRoutes = require('./routes/savedFilters');
-const equipmentRoutes = require('./routes/equipment');
+const auditLogRoutes = require('./routes/auditLog');
+const partsCatalogRoutes = require('./routes/partsCatalog');
+const supplierScorecardRoutes = require('./routes/supplierScorecard');
+const duplicateDetectionRoutes = require('./routes/duplicateDetection');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -59,10 +61,12 @@ app.use('/api/approvals', approvalsRoutes);
 app.use('/api/autocomplete', autocompleteRoutes); // ⭐ NEW: Intelligent autocomplete
 app.use('/api/test', testRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/templates', templateRoutes);
 app.use('/api/notifications', notificationsRoutes);
-app.use('/api/comments', commentsRoutes);
-app.use('/api/saved-filters', savedFiltersRoutes);
-app.use('/api/equipment', equipmentRoutes);
+app.use('/api/audit-log', auditLogRoutes);
+app.use('/api/parts-catalog', partsCatalogRoutes);
+app.use('/api/supplier-scorecard', supplierScorecardRoutes);
+app.use('/api/duplicate-check', duplicateDetectionRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -70,7 +74,7 @@ app.get('/api/health', (req, res) => {
         status: 'OK',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV,
-        version: '2.6.0' // Phase 6: Smart Quote Send
+        version: '3.0.0' // World-Class Upgrade
     });
 });
 
@@ -90,7 +94,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`PartPulse Orders Server v2.6.0 running on port ${PORT}`);
+    console.log(`PartPulse Orders Server v3.0.0 running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
     console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
     console.log(`Features: World-Class Upgrade v3.0 — Full UI/UX + Notifications + Equipment + Comments + Search`);

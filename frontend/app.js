@@ -651,7 +651,13 @@ function showDashboard() {
             if (sidebarUsersBtn) sidebarUsersBtn.hidden = false;
             if (sidebarAdminDivider) sidebarAdminDivider.hidden = false;
             if (sidebarAdminLabel) sidebarAdminLabel.hidden = false;
+            const sidebarAuditLogBtn = document.getElementById('sidebarAuditLogBtn');
+            if (sidebarAuditLogBtn) sidebarAuditLogBtn.hidden = false;
         }
+
+        // Show supplier scorecard for procurement/admin
+        const sidebarScorecardBtn = document.getElementById('sidebarScorecardBtn');
+        if (sidebarScorecardBtn) sidebarScorecardBtn.hidden = false;
 
         const btnProcCreate = document.getElementById('btnProcurementCreateOrder');
         if (btnProcCreate) btnProcCreate.classList.remove('hidden');
@@ -1993,7 +1999,21 @@ function switchTab(tabId) {
         window.AnalyticsModule.init();
     }
 
-    // ⭐ NEW: Show brand training UI for admins in Suppliers tab
+    // Load data for new tabs
+    if (tabId === 'templatesTab' && window.PartPulseUpgrade && window.PartPulseUpgrade.Templates) {
+        window.PartPulseUpgrade.Templates.load();
+    }
+    if (tabId === 'partsCatalogTab' && window.PartPulseUpgrade && window.PartPulseUpgrade.PartsCatalog) {
+        window.PartPulseUpgrade.PartsCatalog.load();
+    }
+    if (tabId === 'supplierScorecardTab' && window.PartPulseUpgrade && window.PartPulseUpgrade.SupplierScorecard) {
+        window.PartPulseUpgrade.SupplierScorecard.load();
+    }
+    if (tabId === 'auditLogTab' && window.PartPulseUpgrade && window.PartPulseUpgrade.AuditLog) {
+        window.PartPulseUpgrade.AuditLog.load();
+    }
+
+    // Show brand training UI for admins in Suppliers tab
     if (tabId === 'suppliersTab' && currentUser && currentUser.role === 'admin') {
         const brandTrainingCard = document.getElementById('brandTrainingCard');
         if (brandTrainingCard) {

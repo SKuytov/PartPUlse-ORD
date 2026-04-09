@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="css/intelligent-autocomplete.css">
     <!-- World-Class Upgrade Styles -->
     <link rel="stylesheet" href="css/world-class-upgrade.css">
+    <link rel="stylesheet" href="css/upgrade.css">
     <script src="upload-progress.js"></script>
     <script src="analytics-cache.js"></script>
     <script src="analytics-charts.js"></script>
@@ -94,6 +95,8 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Dark Mode Toggle -->
+                    <button id="darkModeToggle" class="btn-icon" title="Toggle Theme" style="font-size:1.1rem;cursor:pointer;">🌙</button>
                     <span id="userName" style="font-size:0.88rem;"></span>
                     <select id="languageSelector" class="form-control" style="width: auto; font-size: 0.8rem; padding: 0.25rem 0.4rem;">
                         <option value="bg">BG</option>
@@ -126,8 +129,21 @@
                     <span data-i18n="nav.suppliers">Suppliers</span>
                 </button>
 
+                <button class="nav-item" data-tab="templatesTab" id="sidebarTemplatesBtn">
+                    <span class="nav-icon">📋</span>
+                    <span>Templates</span>
+                </button>
+                <button class="nav-item" data-tab="partsCatalogTab" id="sidebarPartsCatalogBtn">
+                    <span class="nav-icon">🔧</span>
+                    <span>Parts Catalog</span>
+                </button>
+
                 <div class="nav-divider"></div>
                 <div class="nav-section-label">Analytics</div>
+                <button class="nav-item" data-tab="supplierScorecardTab" id="sidebarScorecardBtn" hidden>
+                    <span class="nav-icon">⭐</span>
+                    <span>Supplier Scorecard</span>
+                </button>
                 <button class="nav-item" data-tab="analyticsTab" id="sidebarAnalyticsBtn" hidden>
                     <span class="nav-icon">📈</span>
                     <span data-i18n="nav.analytics">Analytics</span>
@@ -146,6 +162,10 @@
                 <button class="nav-item" data-tab="usersTab" id="sidebarUsersBtn" hidden>
                     <span class="nav-icon">👥</span>
                     <span data-i18n="nav.users">Users</span>
+                </button>
+                <button class="nav-item" data-tab="auditLogTab" id="sidebarAuditLogBtn" hidden>
+                    <span class="nav-icon">📝</span>
+                    <span>Audit Log</span>
                 </button>
             </nav>
 
@@ -610,6 +630,73 @@
                 </div>
             </section>
 
+            <!-- Templates Tab -->
+            <section id="templatesTab" class="tab-content hidden">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Order Templates</h2>
+                        <button id="btnNewTemplate" class="btn btn-primary btn-sm">➕ New Template</button>
+                    </div>
+                    <div id="templatesGrid" class="templates-grid">
+                        <p class="text-muted">Loading templates...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Parts Catalog Tab -->
+            <section id="partsCatalogTab" class="tab-content hidden">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Parts Catalog</h2>
+                        <div style="display:flex;gap:0.5rem;">
+                            <input type="text" id="partsCatalogSearch" class="form-control form-control-sm" placeholder="Search parts..." style="width:200px;">
+                            <button id="btnRefreshCatalog" class="btn btn-secondary btn-sm">Refresh</button>
+                        </div>
+                    </div>
+                    <div id="partsCatalogTable" class="table-wrapper">
+                        <p class="text-muted">Loading parts catalog...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Supplier Scorecard Tab -->
+            <section id="supplierScorecardTab" class="tab-content hidden">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Supplier Scorecard</h2>
+                        <button id="btnRefreshScorecard" class="btn btn-secondary btn-sm">Refresh</button>
+                    </div>
+                    <div id="scorecardGrid" class="scorecard-grid">
+                        <p class="text-muted">Loading supplier scorecards...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Audit Log Tab (admin only) -->
+            <section id="auditLogTab" class="tab-content hidden">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Audit Log</h2>
+                        <div style="display:flex;gap:0.5rem;">
+                            <input type="text" id="auditLogSearch" class="form-control form-control-sm" placeholder="Filter by order ID..." style="width:180px;">
+                            <select id="auditLogAction" class="form-control form-control-sm" style="width:160px;">
+                                <option value="">All Actions</option>
+                                <option value="created">Created</option>
+                                <option value="status_change">Status Change</option>
+                                <option value="field_edit">Field Edit</option>
+                                <option value="assignment">Assignment</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                            <button id="btnRefreshAuditLog" class="btn btn-secondary btn-sm">Refresh</button>
+                        </div>
+                    </div>
+                    <div id="auditLogTable" class="table-wrapper">
+                        <p class="text-muted">Loading audit log...</p>
+                    </div>
+                </div>
+            </section>
+
             <!-- Analytics Tab -->
             <section id="analyticsTab" class="tab-content hidden">
                 <div id="analyticsTabContent">
@@ -803,6 +890,151 @@
     </div>
 </div>
 
+<!-- CSV Import Modal -->
+<div id="csvImportModal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width:700px;">
+        <div class="modal-header">
+            <h3>📤 Import Orders from CSV</h3>
+            <button class="btn-close" onclick="document.getElementById('csvImportModal').classList.add('hidden')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Upload CSV File</label>
+                <input type="file" id="csvImportFile" accept=".csv" class="form-control">
+            </div>
+            <div id="csvImportPreview" class="hidden">
+                <h4 style="margin-bottom:0.5rem;">Column Mapping</h4>
+                <p class="text-muted" style="font-size:0.8rem;margin-bottom:0.75rem;">Map your CSV columns to order fields:</p>
+                <div id="csvColumnMapping" class="csv-column-mapper"></div>
+                <h4 style="margin:1rem 0 0.5rem;">Preview (first 5 rows)</h4>
+                <div id="csvPreviewTable" class="csv-preview-table table-wrapper"></div>
+                <div class="form-actions" style="margin-top:1rem;">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('csvImportModal').classList.add('hidden')">Cancel</button>
+                    <button type="button" id="btnImportCSV" class="btn btn-primary">Import Orders</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template Create/Edit Modal -->
+<div id="templateModal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width:520px;">
+        <div class="modal-header">
+            <h3 id="templateModalTitle">Create Template</h3>
+            <button class="btn-close" onclick="document.getElementById('templateModal').classList.add('hidden')">✕</button>
+        </div>
+        <div class="modal-body">
+            <form id="templateForm">
+                <input type="hidden" id="templateId">
+                <div class="form-group">
+                    <label>Template Name *</label>
+                    <input type="text" id="templateName" class="form-control" required placeholder="e.g. Monthly Bearing Order">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="templateDescription" class="form-control" rows="2" placeholder="Brief description of this template..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Building</label>
+                    <select id="templateBuilding" class="form-control">
+                        <option value="">Any Building</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Item Description *</label>
+                    <textarea id="templateItemDescription" class="form-control" rows="2" required></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Part Number</label>
+                        <input type="text" id="templatePartNumber" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <input type="text" id="templateCategory" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" id="templateQuantity" class="form-control" min="1" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="templatePriority" class="form-control">
+                            <option value="Normal">Normal</option>
+                            <option value="Low">Low</option>
+                            <option value="High">High</option>
+                            <option value="Urgent">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="templateNotes" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('templateModal').classList.add('hidden')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Keyboard Shortcuts Modal -->
+<div id="shortcutsModal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width:480px;">
+        <div class="modal-header">
+            <h3>⌨️ Keyboard Shortcuts</h3>
+            <button class="btn-close" onclick="document.getElementById('shortcutsModal').classList.add('hidden')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="shortcuts-grid">
+                <div class="shortcut-row"><kbd class="shortcut-key">?</kbd><span class="shortcut-desc">Show this help</span></div>
+                <div class="shortcut-row"><kbd class="shortcut-key">Ctrl+K</kbd><span class="shortcut-desc">Global search</span></div>
+                <div class="shortcut-row"><kbd class="shortcut-key">/</kbd><span class="shortcut-desc">Focus search</span></div>
+                <div class="shortcut-row"><kbd class="shortcut-key">N</kbd><span class="shortcut-desc">New order</span></div>
+                <div class="shortcut-row"><kbd class="shortcut-key">Esc</kbd><span class="shortcut-desc">Close modal/panel</span></div>
+                <div class="shortcut-row"><kbd class="shortcut-key">1-9</kbd><span class="shortcut-desc">Switch tabs</span></div>
+                <div class="shortcut-row"><kbd class="shortcut-key">D</kbd><span class="shortcut-desc">Toggle dark mode</span></div>
+                <div class="shortcut-row"><kbd class="shortcut-key">E</kbd><span class="shortcut-desc">Export CSV</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global Search Overlay -->
+<div id="globalSearchOverlay" class="global-search-overlay hidden">
+    <div class="global-search-container">
+        <div class="global-search-header">
+            <span class="global-search-icon">🔍</span>
+            <input type="text" id="globalSearchInput" class="global-search-input" placeholder="Search orders, parts, suppliers..." autocomplete="off">
+            <kbd class="search-shortcut-hint">Esc</kbd>
+        </div>
+        <div id="globalSearchResults" class="global-search-results">
+            <div class="global-search-empty">Type to search...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Print Label Template (hidden) -->
+<div id="printLabelTemplate" class="hidden" style="display:none;">
+    <div class="print-label">
+        <div class="print-label-header">
+            <strong>PartPulse</strong> — Part Label
+        </div>
+        <div class="print-label-body">
+            <div id="printLabelOrderNo"></div>
+            <div id="printLabelPartName"></div>
+            <div id="printLabelQty"></div>
+            <div id="printLabelDate"></div>
+            <div id="printLabelQR"></div>
+        </div>
+    </div>
+</div>
+
 <!-- Analytics Drill-Down Modal -->
 <div id="analyticsDrillModal" class="analytics-drill-modal hidden">
     <div class="analytics-drill-backdrop" id="analyticsDrillBackdrop"></div>
@@ -846,6 +1078,10 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <!-- Analytics Module -->
 <script src="analytics.js"></script>
+<!-- QR Code Library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<!-- World-Class Upgrade Module -->
+<script src="js/upgrade.js"></script>
 
 <!-- ⭐ Language Selector Event Handlers -->
 <script>
