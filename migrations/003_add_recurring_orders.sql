@@ -37,9 +37,19 @@ SET @sql = IF(
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- Indexes (CREATE INDEX does not support IF NOT EXISTS in MySQL 5.7, use DROP first pattern)
-DROP INDEX IF EXISTS idx_recurring ON orders;
-CREATE INDEX idx_recurring ON orders (is_recurring, recurring_next_date);
+-- Indexes: safe creation using information_schema check (MySQL 5.7 compatible)
+SET @idx = 'idx_recurring'; SET @tbl = 'orders';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND INDEX_NAME=@idx) = 0,
+  CONCAT('CREATE INDEX `', @idx, '` ON `', @tbl, '` (is_recurring, recurring_next_date)'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-DROP INDEX IF EXISTS idx_recurring_parent ON orders;
-CREATE INDEX idx_recurring_parent ON orders (recurring_parent_id);
+SET @idx = 'idx_recurring_parent';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND INDEX_NAME=@idx) = 0,
+  CONCAT('CREATE INDEX `', @idx, '` ON `', @tbl, '` (recurring_parent_id)'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
