@@ -74,25 +74,21 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 
 -- ============================================
 -- 5. EQUIPMENT / MACHINE TABLE (if not already created by 001)
+-- Uses same schema as 001_add_urgency_priority.sql (equipment_id column)
 -- ============================================
 CREATE TABLE IF NOT EXISTS equipment (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    code VARCHAR(50) NOT NULL UNIQUE,
-    name VARCHAR(200) NOT NULL,
-    building_code VARCHAR(50),
+    equipment_id VARCHAR(100) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    building VARCHAR(50),
     department VARCHAR(100),
-    manufacturer VARCHAR(200),
-    model VARCHAR(200),
-    serial_number VARCHAR(200),
-    install_date DATE,
-    status ENUM('operational','down','maintenance','retired') DEFAULT 'operational',
-    criticality ENUM('critical','high','medium','low') DEFAULT 'medium',
-    notes TEXT,
+    location VARCHAR(255),
+    description TEXT,
     active TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_eq2_building (building_code),
-    INDEX idx_eq2_status (status)
+    INDEX idx_eq2_building (building),
+    INDEX idx_eq2_active (active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
@@ -179,9 +175,9 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- ============================================
 -- 9. SEED SAMPLE EQUIPMENT DATA
 -- ============================================
-INSERT IGNORE INTO equipment (code, name, building_code, status, criticality) VALUES
-('EQ-001', 'Main Production Line A', 'CT', 'operational', 'critical'),
-('EQ-002', 'Packaging Machine B', 'CT', 'operational', 'high'),
-('EQ-003', 'HVAC System', 'CT', 'operational', 'medium'),
-('EQ-004', 'Conveyor Belt C', 'CT', 'operational', 'high'),
-('EQ-005', 'Boiler Room Unit', 'CT', 'maintenance', 'critical');
+INSERT IGNORE INTO equipment (equipment_id, name, building) VALUES
+('EQ-001', 'Main Production Line A', 'CT'),
+('EQ-002', 'Packaging Machine B', 'CT'),
+('EQ-003', 'HVAC System', 'CT'),
+('EQ-004', 'Conveyor Belt C', 'CT'),
+('EQ-005', 'Boiler Room Unit', 'CT');
