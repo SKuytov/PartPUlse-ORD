@@ -20,6 +20,17 @@ const approvalsRoutes = require('./routes/approvals');
 const autocompleteRoutes = require('./routes/autocomplete');
 const testRoutes = require('./routes/test');
 const analyticsRoutes = require('./routes/analytics');
+const templateRoutes = require('./routes/templates');
+const notificationsRoutes = require('./routes/notifications');
+const auditLogRoutes = require('./routes/auditLog');
+const partsCatalogRoutes = require('./routes/partsCatalog');
+const supplierScorecardRoutes = require('./routes/supplierScorecard');
+const duplicateDetectionRoutes = require('./routes/duplicateDetection');
+
+// Phase 2 routes
+const claimRoutes = require('./routes/claims');
+const rfqRoutes = require('./routes/rfq');
+const cadRoutes = require('./routes/cad');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -55,6 +66,17 @@ app.use('/api/approvals', approvalsRoutes);
 app.use('/api/autocomplete', autocompleteRoutes); // ⭐ NEW: Intelligent autocomplete
 app.use('/api/test', testRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/templates', templateRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/audit-log', auditLogRoutes);
+app.use('/api/parts-catalog', partsCatalogRoutes);
+app.use('/api/supplier-scorecard', supplierScorecardRoutes);
+app.use('/api/duplicate-check', duplicateDetectionRoutes);
+
+// Phase 2: Order Claiming, RFQ, CAD Workflow
+app.use('/api/orders', claimRoutes);
+app.use('/api/procurement', rfqRoutes);
+app.use('/api/cad', cadRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -62,7 +84,7 @@ app.get('/api/health', (req, res) => {
         status: 'OK',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV,
-        version: '2.6.0' // Phase 6: Smart Quote Send
+        version: '3.1.0' // Phase 2: Procurement Workflow & Collaboration
     });
 });
 
@@ -82,10 +104,10 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`PartPulse Orders Server v2.6.0 running on port ${PORT}`);
+    console.log(`PartPulse Orders Server v3.1.0 running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
     console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
-    console.log(`Features: Smart Quote Send + Smart Autocomplete + Document Management + Approvals + Procurement`);
+    console.log(`Features: Phase 2 — Super Admin, User Mgmt, Order Claiming, RFQ System, CAD Workflow`);
 });
 
 module.exports = app;

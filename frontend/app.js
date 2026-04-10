@@ -1,4 +1,4 @@
-// frontend/app.js - PartPulse Orders v2.8.0 - Full Restore + Patches
+// frontend/app.js - PartPulse Orders v3.0 - World-Class Upgrade
 
 const API_BASE = '/api';
 let currentUser = null;
@@ -14,12 +14,13 @@ let costCentersState = [];
 let selectedOrderIds = new Set();
 let currentTab = 'ordersTab';
 let viewMode = 'flat'; // 'flat' or 'grouped'
+let tableDensity = localStorage.getItem('pp_table_density') || 'comfortable';
 
-// ⭐ NEW: Pagination state
+// Pagination state
 let currentPage = 1;
 const ORDERS_PER_PAGE = 20;
 
-// Filter state
+// Filter state (extended for v3.0)
 let filterState = {
     search: '',
     status: '',
@@ -27,7 +28,11 @@ let filterState = {
     priority: '',
     supplier: '',
     delivery: '',
-    quickFilter: ''
+    quickFilter: '',
+    dateFrom: '',
+    dateTo: '',
+    costMin: '',
+    costMax: ''
 };
 
 // DOM
@@ -264,13 +269,17 @@ function setViewMode(mode) {
 }
 
 function clearFilters() {
-    filterState = { search: '', status: '', building: '', priority: '', supplier: '', delivery: '', quickFilter: '' };
+    filterState = { search: '', status: '', building: '', priority: '', supplier: '', delivery: '', quickFilter: '', dateFrom: '', dateTo: '', costMin: '', costMax: '' };
     if (filterSearch) filterSearch.value = '';
     if (filterStatus) filterStatus.value = '';
     if (filterBuilding) filterBuilding.value = '';
     if (filterPriority) filterPriority.value = '';
     if (filterSupplier) filterSupplier.value = '';
     if (filterDelivery) filterDelivery.value = '';
+    const dateFrom = document.getElementById('filterDateFrom');
+    const dateTo = document.getElementById('filterDateTo');
+    if (dateFrom) dateFrom.value = '';
+    if (dateTo) dateTo.value = '';
     document.querySelectorAll('.quick-filter-chip').forEach(c => c.classList.remove('active'));
     currentPage = 1;
     applyFilters();
@@ -278,7 +287,7 @@ function clearFilters() {
 
 function resetFiltersOnLogout() {
     // Reset filter state
-    filterState = { search: '', status: '', building: '', priority: '', supplier: '', delivery: '', quickFilter: '' };
+    filterState = { search: '', status: '', building: '', priority: '', supplier: '', delivery: '', quickFilter: '', dateFrom: '', dateTo: '', costMin: '', costMax: '' };
     
     // Reset filter UI elements
     if (filterSearch) filterSearch.value = '';
@@ -436,6 +445,37 @@ function applyFilters() {
             } else if (qf === 'new' && order.status !== 'New') return false;
             else if (qf === 'ordered' && order.status !== 'Ordered') return false;
             else if (qf === 'transit' && order.status !== 'In Transit') return false;
+            else if (qf === 'myorders') {
+                if (currentUser && order.requester_id !== currentUser.id && order.assigned_to_user_id !== currentUser.id) return false;
+            }
+            else if (qf === 'today') {
+                const today = new Date().toISOString().substring(0, 10);
+                const created = order.created_at ? order.created_at.substring(0, 10) : '';
+                if (created !== today) return false;
+            }
+        }
+
+        // Date range filter
+        if (filterState.dateFrom) {
+            const from = new Date(filterState.dateFrom);
+            const orderDate = order.created_at ? new Date(order.created_at) : null;
+            if (!orderDate || orderDate < from) return false;
+        }
+        if (filterState.dateTo) {
+            const to = new Date(filterState.dateTo);
+            to.setHours(23, 59, 59);
+            const orderDate = order.created_at ? new Date(order.created_at) : null;
+            if (!orderDate || orderDate > to) return false;
+        }
+
+        // Cost range filter
+        if (filterState.costMin) {
+            const min = parseFloat(filterState.costMin);
+            if (!isNaN(min) && (parseFloat(order.total_price) || 0) < min) return false;
+        }
+        if (filterState.costMax) {
+            const max = parseFloat(filterState.costMax);
+            if (!isNaN(max) && (parseFloat(order.total_price) || 0) > max) return false;
         }
 
         return true;
@@ -455,6 +495,12 @@ function applyFilters() {
     });
 
     renderOrdersTable();
+
+    // Update active filter chips
+    if (window.AdvancedFilters) window.AdvancedFilters.renderActiveChips();
+
+    // Update URL-based filter state
+    if (window.AdvancedFilters) window.AdvancedFilters.updateURL();
 }
 
 // ===================== AUTH =====================
@@ -518,8 +564,8 @@ function showDashboard() {
     loginScreen.classList.add('hidden');
     dashboardScreen.classList.remove('hidden');
     userName.textContent = currentUser.name;
-    
-    // ⭐ FIX: Proper role badge display including manager
+
+    // Role badge display
     if (currentUser.role === 'admin') {
         userRoleBadge.textContent = 'Admin';
     } else if (currentUser.role === 'procurement') {
@@ -530,82 +576,128 @@ function showDashboard() {
         userRoleBadge.textContent = `Requester · ${currentUser.building || ''}`;
     }
 
-    // Hide admin-only tabs by default
+    // Hide admin-only elements by default
     if (usersTabButton) usersTabButton.hidden = true;
     if (buildingsTabButton) buildingsTabButton.hidden = true;
     if (costCentersTabButton) costCentersTabButton.hidden = true;
     if (approvalsTabButton) approvalsTabButton.hidden = true;
 
-    if (currentUser.role === 'requester') {
-        // REQUESTER: Show order creation form, hide navigation tabs
+    // === SIDEBAR NAVIGATION SETUP ===
+    const sidebarNav = document.getElementById('sidebarNav');
+    const sidebarApprovalsBtn = document.getElementById('sidebarApprovalsBtn');
+    const sidebarAnalyticsBtn = document.getElementById('sidebarAnalyticsBtn');
+    const sidebarBuildingsBtn = document.getElementById('sidebarBuildingsBtn');
+    const sidebarCostCentersBtn = document.getElementById('sidebarCostCentersBtn');
+    const sidebarUsersBtn = document.getElementById('sidebarUsersBtn');
+    const sidebarAdminDivider = document.getElementById('sidebarAdminDivider');
+    const sidebarAdminLabel = document.getElementById('sidebarAdminLabel');
+    const mobileApprovalsBtn = document.getElementById('mobileApprovalsBtn');
+    const mobileAnalyticsBtn = document.getElementById('mobileAnalyticsBtn');
+    const btnProcCreate2 = document.getElementById('btnProcurementCreateOrder2');
+
+    // Phase 2: Check for multi-role access
+    const hasAdminAccess = currentUser.role === 'admin' || currentUser.is_super_admin || (currentUser.roles && currentUser.roles.includes('admin'));
+    const hasProcAccess = currentUser.role === 'procurement' || hasAdminAccess || (currentUser.roles && currentUser.roles.includes('procurement'));
+    const isRequesterOnly = currentUser.role === 'requester' && !hasAdminAccess && !hasProcAccess && (!currentUser.roles || currentUser.roles.length === 0 || (currentUser.roles.length === 1 && currentUser.roles[0] === 'requester'));
+
+    if (isRequesterOnly) {
+        // REQUESTER: Show order creation form, hide navigation
         createOrderSection.classList.remove('hidden');
         requesterBuildingBadge.textContent = `Building ${currentUser.building}`;
+        if (sidebarNav) sidebarNav.classList.add('hidden');
         navTabs.classList.add('hidden');
-        
-        // HIDE ORDER ACTIONS CONTAINER FOR REQUESTERS (requester_patch)
+
         const orderActionsContainer = document.getElementById('orderActionsContainer');
-        if (orderActionsContainer) {
-            orderActionsContainer.style.display = 'none';
-        }
-        
-        // Hide the quote creation bar
-        if (orderActionsBar) {
-            orderActionsBar.style.display = 'none';
-        }
+        if (orderActionsContainer) orderActionsContainer.style.display = 'none';
+        if (orderActionsBar) orderActionsBar.style.display = 'none';
     } else if (currentUser.role === 'manager') {
-        // ⭐ MANAGER: Show navigation with approvals tab, read-only orders view
+        // MANAGER: Show navigation with approvals tab
         createOrderSection.classList.add('hidden');
+        if (sidebarNav) sidebarNav.classList.remove('hidden');
         navTabs.classList.remove('hidden');
         populateStatusFilter();
-        
-        // Show approvals tab for managers
-        if (approvalsTabButton) approvalsTabButton.hidden = false;
-        
-        // Show order actions container (view toggle)
-        const orderActionsContainer = document.getElementById('orderActionsContainer');
-        if (orderActionsContainer) {
-            orderActionsContainer.style.display = 'flex';
-        }
-        
-        // Hide quote creation for managers
-        if (orderActionsBar) {
-            orderActionsBar.style.display = 'none';
-        }
 
-        // ⭐ NEW: Show Create Order button for managers
+        if (approvalsTabButton) approvalsTabButton.hidden = false;
+        if (sidebarApprovalsBtn) sidebarApprovalsBtn.hidden = false;
+        if (mobileApprovalsBtn) mobileApprovalsBtn.hidden = false;
+        if (sidebarAnalyticsBtn) sidebarAnalyticsBtn.hidden = false;
+        if (mobileAnalyticsBtn) mobileAnalyticsBtn.hidden = false;
+
+        const orderActionsContainer = document.getElementById('orderActionsContainer');
+        if (orderActionsContainer) orderActionsContainer.style.display = 'flex';
+        if (orderActionsBar) orderActionsBar.style.display = 'none';
+
         const btnProcCreateMgr = document.getElementById('btnProcurementCreateOrder');
         if (btnProcCreateMgr) btnProcCreateMgr.classList.remove('hidden');
-        
-        // Initialize approvals if function exists
-        if (typeof loadApprovals === 'function') {
-            loadApprovals();
-        }
+        if (btnProcCreate2) btnProcCreate2.hidden = false;
+
+        if (typeof loadApprovals === 'function') loadApprovals();
     } else {
         // ADMIN / PROCUREMENT: Full access
         createOrderSection.classList.add('hidden');
+        if (sidebarNav) sidebarNav.classList.remove('hidden');
         navTabs.classList.remove('hidden');
         populateStatusFilter();
-        
-        // Show order actions container for admin/procurement
-        const orderActionsContainer = document.getElementById('orderActionsContainer');
-        if (orderActionsContainer) {
-            orderActionsContainer.style.display = 'flex';
-        }
 
-        if (currentUser.role === 'admin') {
+        const orderActionsContainer = document.getElementById('orderActionsContainer');
+        if (orderActionsContainer) orderActionsContainer.style.display = 'flex';
+
+        if (sidebarAnalyticsBtn) sidebarAnalyticsBtn.hidden = false;
+        if (mobileAnalyticsBtn) mobileAnalyticsBtn.hidden = false;
+        if (sidebarApprovalsBtn) sidebarApprovalsBtn.hidden = false;
+        if (mobileApprovalsBtn) mobileApprovalsBtn.hidden = false;
+
+        if (currentUser.role === 'admin' || currentUser.is_super_admin) {
             if (usersTabButton) usersTabButton.hidden = false;
             if (buildingsTabButton) buildingsTabButton.hidden = false;
             if (costCentersTabButton) costCentersTabButton.hidden = false;
+            if (sidebarBuildingsBtn) sidebarBuildingsBtn.hidden = false;
+            if (sidebarCostCentersBtn) sidebarCostCentersBtn.hidden = false;
+            if (sidebarUsersBtn) sidebarUsersBtn.hidden = false;
+            if (sidebarAdminDivider) sidebarAdminDivider.hidden = false;
+            if (sidebarAdminLabel) sidebarAdminLabel.hidden = false;
+            const sidebarAuditLogBtn = document.getElementById('sidebarAuditLogBtn');
+            if (sidebarAuditLogBtn) sidebarAuditLogBtn.hidden = false;
+
+            // Phase 2: Show user management for super admin
+            if (currentUser.is_super_admin) {
+                const umCard = document.getElementById('userManagementCard');
+                if (umCard) umCard.style.display = 'block';
+            }
         }
 
-        // ⭐ NEW: Show Create Order button for admin/procurement
+        // Show supplier scorecard for procurement/admin
+        const sidebarScorecardBtn = document.getElementById('sidebarScorecardBtn');
+        if (sidebarScorecardBtn) sidebarScorecardBtn.hidden = false;
+
         const btnProcCreate = document.getElementById('btnProcurementCreateOrder');
         if (btnProcCreate) btnProcCreate.classList.remove('hidden');
+        if (btnProcCreate2) btnProcCreate2.hidden = false;
 
-        // Show analytics tab for admin and procurement
         const analyticsTabButton = document.getElementById('analyticsTabButton');
         if (analyticsTabButton) analyticsTabButton.hidden = false;
     }
+
+    // === SIDEBAR NAV CLICK HANDLERS ===
+    document.querySelectorAll('.sidebar-nav .nav-item[data-tab], .mobile-nav-item[data-tab]').forEach(item => {
+        item.addEventListener('click', () => {
+            const tab = item.dataset.tab;
+            switchTab(tab);
+            // Update active state
+            document.querySelectorAll('.sidebar-nav .nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll(`[data-tab="${tab}"]`).forEach(n => n.classList.add('active'));
+        });
+    });
+
+    // === TABLE DENSITY ===
+    initTableDensity();
+
+    // === EXPORT BUTTONS ===
+    initExportButtons();
+
+    // === BULK ACTIONS ===
+    initBulkActions();
 
     // Show orders tab by default
     document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
@@ -616,12 +708,18 @@ function showDashboard() {
     loadBuildings();
     loadCostCenters();
     // ⭐ FIX: Only load suppliers for admin and procurement roles
-    if (currentUser.role === 'admin' || currentUser.role === 'procurement') {
+    if (currentUser.role === 'admin' || currentUser.role === 'procurement' ||
+        (currentUser.roles && (currentUser.roles.includes('procurement') || currentUser.roles.includes('admin')))) {
         loadSuppliers().then(() => { populateSupplierFilter(); });
     }
     loadOrders();
     if (currentUser.role !== 'requester') { loadQuotes(); }
-    if (currentUser.role === 'admin') { loadUsers(); }
+    if (currentUser.role === 'admin' || currentUser.is_super_admin) { loadUsers(); }
+
+    // Phase 2: Initialize procurement workflow features
+    if (window.Phase2) {
+        window.Phase2.init();
+    }
 }
 
 // API helpers
@@ -920,18 +1018,24 @@ async function handleCreateOrder(e) {
 
 async function loadOrders() {
     try {
+        // Show loading state
+        if (ordersTable) ordersTable.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><span>Loading orders...</span></div>';
+
         const res = await apiGet('/orders');
         if (res.success) {
             ordersState = res.orders;
             filteredOrders = ordersState;
             selectedOrderIds.clear();
             updateSelectionUi();
-            currentPage = 1; // Reset to page 1
+            currentPage = 1;
             applyFilters();
+
+            // Render dashboard summary
+            renderDashboardSummary();
         }
     } catch (err) {
         console.error('loadOrders error:', err);
-        ordersTable.innerHTML = '<p>Failed to load orders.</p>';
+        ordersTable.innerHTML = '<div class="error-state"><span class="error-icon">⚠</span><p>Failed to load orders. Please try again.</p></div>';
     }
 }
 
@@ -1018,31 +1122,31 @@ function renderFlatOrders(activeOrders, oldDelivered) {
         const endIdx = startIdx + ORDERS_PER_PAGE;
         const paginatedOrders = activeOrders.slice(startIdx, endIdx);
         
-        html += '<div class="table-wrapper"><table><thead><tr>';
+        html += `<div class="table-wrapper"><table class="${getTableDensityClass()}"><thead><tr>`;
         if (canSelectOrders) html += '<th class="sticky"><input type="checkbox" id="selectAllOrders"></th>';
-        
-        html += '<th>ID</th>';
-        html += '<th></th>'; // View button column
-        html += '<th>Item</th>';
+
+        html += '<th class="sortable" data-sort-col="id">ID<span class="sort-indicator">▲</span></th>';
+        html += '<th></th>';
+        html += '<th class="sortable" data-sort-col="item">Item<span class="sort-indicator">▲</span></th>';
         html += '<th>Cost Center</th>';
-        html += '<th>Qty</th>';
-        html += '<th>Status</th>';
-        html += '<th>Priority</th>';
+        html += '<th class="sortable" data-sort-col="quantity">Qty<span class="sort-indicator">▲</span></th>';
+        html += '<th class="sortable" data-sort-col="status">Status<span class="sort-indicator">▲</span></th>';
+        html += '<th class="sortable" data-sort-col="priority">Priority<span class="sort-indicator">▲</span></th>';
         html += '<th>Files</th>';
-        
+
         if (isAdminView) {
-            html += '<th>Requester</th>';
+            html += '<th class="sortable hide-mobile" data-sort-col="requester">Requester<span class="sort-indicator">▲</span></th>';
             html += '<th>Delivery</th>';
-            html += '<th>Needed</th>';
-            html += '<th>Supplier</th>';
-            html += '<th>Building</th>';
-            html += '<th>Unit</th>';
-            html += '<th>Total</th>';
+            html += '<th class="sortable" data-sort-col="date_needed">Needed<span class="sort-indicator">▲</span></th>';
+            html += '<th class="sortable hide-mobile" data-sort-col="supplier">Supplier<span class="sort-indicator">▲</span></th>';
+            html += '<th class="hide-mobile">Building</th>';
+            html += '<th class="hide-mobile">Unit</th>';
+            html += '<th class="sortable hide-mobile" data-sort-col="total_price">Total<span class="sort-indicator">▲</span></th>';
         } else {
             html += '<th>Delivery</th>';
-            html += '<th>Needed</th>';
+            html += '<th class="sortable" data-sort-col="date_needed">Needed<span class="sort-indicator">▲</span></th>';
         }
-        
+
         html += '</tr></thead><tbody>';
 
         for (const order of paginatedOrders) {
@@ -1232,7 +1336,9 @@ function renderOrderRow(order, canSelectOrders, isAdminView) {
     const deliveryStatus = getDeliveryStatus(order);
     const deliveredDate = getDeliveredDate(order);
 
-    let html = '<tr data-id="' + order.id + '">';
+    const isPinned = order.pinned;
+    const isMachineDown = order.machine_down;
+    let html = `<tr data-id="${order.id}" class="${isPinned ? 'row-pinned' : ''}">`;
     
     if (canSelectOrders) {
         html += `<td class="sticky"><input type="checkbox" class="row-select" data-id="${order.id}"></td>`;
@@ -1249,7 +1355,13 @@ function renderOrderRow(order, canSelectOrders, isAdminView) {
         html += `<td><span class="status-badge ${statusClass}">${order.status}</span></td>`;
     }
     
-    html += `<td><span class="priority-pill ${priorityClass}">${order.priority || 'Normal'}</span></td>`;
+    html += `<td><span class="priority-pill ${priorityClass}">${order.priority || 'Normal'}</span>`;
+    // Phase 2: Claim & Help badges
+    if (window.Phase2) {
+        html += ' ' + Phase2.renderClaimBadge(order);
+        html += ' ' + Phase2.renderHelpBadge(order);
+    }
+    html += `</td>`;
     html += `<td>${hasFiles ? '📎 ' + order.files.length : '-'}</td>`;
 
     if (isAdminView) {
@@ -1311,6 +1423,16 @@ function attachOrderEventListeners(canSelectOrders) {
     document.querySelectorAll('.btn-view-order').forEach(btn => {
         btn.addEventListener('click', () => openOrderDetail(parseInt(btn.dataset.id, 10)));
     });
+
+    // Sortable column headers
+    document.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', (e) => {
+            const col = th.dataset.sortCol;
+            if (col && window.AdvancedFilters) {
+                window.AdvancedFilters.handleColumnSort(col, e.shiftKey);
+            }
+        });
+    });
 }
 
 function updateSelectionUi() {
@@ -1346,7 +1468,7 @@ function renderOrderDetail(o) {
 
     let html = '';
     html += `<div class="detail-grid">
-        <div><div class="detail-label">Order ID</div><div class="detail-value">#${o.id}</div></div>
+        <div><div class="detail-label">Order ID</div><div class="detail-value">#${o.id} <button class="btn-copy-id" onclick="copyOrderId(${o.id})" title="Copy order ID">📋</button></div></div>
         <div><div class="detail-label">Building</div><div class="detail-value">${o.building}</div></div>
         <div><div class="detail-label">Cost Center</div><div class="detail-value">${o.cost_center_code ? `${o.cost_center_code} — ${o.cost_center_name}` : '-'}</div></div>
         <div><div class="detail-label">Status</div><div class="detail-value"><span class="status-badge ${statusClass}">${o.status}</span></div></div>
@@ -1446,6 +1568,11 @@ function renderOrderDetail(o) {
         html += '<div id="supplierSuggestionsContainer"></div>';
     }
 
+    // Comments section
+    html += '<hr class="mt-2" style="border-color: rgba(31,41,55,0.9); margin-bottom: 0.6rem;">';
+    html += '<div class="detail-section-title">💬 Comments</div>';
+    html += '<div id="commentsContainer"><div class="loading-state" style="padding:0.5rem;"><div class="loading-spinner"></div></div></div>';
+
     // Only admin/procurement can edit orders
     if (currentUser.role === 'admin' || currentUser.role === 'procurement') {
         html += '<hr class="mt-2" style="border-color: rgba(31,41,55,0.9); margin-bottom: 0.6rem;">';
@@ -1469,9 +1596,23 @@ function renderOrderDetail(o) {
         html += `<div class="form-actions"><button id="btnSaveOrder" class="btn btn-primary btn-sm">Save</button></div>`;
     }
 
+    // Phase 2: Add claim banners, claim buttons, and CAD section
+    if (window.Phase2) {
+        html = Phase2.renderHelpBanner(o) + Phase2.renderClaimBanner(o) + html;
+        // Add claim action buttons
+        if (Phase2.isProcurement()) {
+            html += '<div style="margin-top:1rem;">' + Phase2.renderClaimButtons(o) + '</div>';
+        }
+        // Add CAD section
+        html += Phase2.renderCadSection(o);
+    }
+
     orderDetailBody.innerHTML = html;
 
-    // ⭐ NEW: Load supplier suggestions (Phase 1)
+    // Load comments
+    renderCommentsSection(o.id);
+
+    // Load supplier suggestions (Phase 1)
     if ((currentUser.role === 'admin' || currentUser.role === 'procurement') && 
         typeof loadSupplierSuggestions === 'function') {
         loadSupplierSuggestions(o.id, o.supplier_id);
@@ -1499,8 +1640,12 @@ function renderOrderDetail(o) {
                 alternative_product_description: document.getElementById('detailAltProductDesc') ? document.getElementById('detailAltProductDesc').value || null : null
             };
             const res = await apiPut(`/orders/${o.id}`, payload);
-            if (res.success) { alert('Order updated'); loadOrders(); openOrderDetail(o.id); }
-            else { alert('Failed to update order: ' + (res.message || 'Unknown error')); }
+            if (res.success) {
+                if (window.Toast) window.Toast.show('Order updated successfully', 'success');
+                loadOrders(); openOrderDetail(o.id);
+            } else {
+                if (window.Toast) window.Toast.show('Failed to update: ' + (res.message || 'Unknown error'), 'error');
+            }
         });
     }
 }
@@ -1875,15 +2020,34 @@ function switchTab(tabId) {
     if (currentTab === tabId) return;
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-    document.getElementById(tabId).classList.remove('hidden');
+    const tabEl = document.getElementById(tabId);
+    if (tabEl) tabEl.classList.remove('hidden');
     currentTab = tabId;
+
+    // Update sidebar and mobile nav active states
+    document.querySelectorAll('.sidebar-nav .nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tabId));
+    document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tabId));
 
     // Initialize analytics when tab is switched
     if (tabId === 'analyticsTab' && window.AnalyticsModule) {
         window.AnalyticsModule.init();
     }
 
-    // ⭐ NEW: Show brand training UI for admins in Suppliers tab
+    // Load data for new tabs
+    if (tabId === 'templatesTab' && window.PartPulseUpgrade && window.PartPulseUpgrade.Templates) {
+        window.PartPulseUpgrade.Templates.load();
+    }
+    if (tabId === 'partsCatalogTab' && window.PartPulseUpgrade && window.PartPulseUpgrade.PartsCatalog) {
+        window.PartPulseUpgrade.PartsCatalog.load();
+    }
+    if (tabId === 'supplierScorecardTab' && window.PartPulseUpgrade && window.PartPulseUpgrade.SupplierScorecard) {
+        window.PartPulseUpgrade.SupplierScorecard.load();
+    }
+    if (tabId === 'auditLogTab' && window.PartPulseUpgrade && window.PartPulseUpgrade.AuditLog) {
+        window.PartPulseUpgrade.AuditLog.load();
+    }
+
+    // Show brand training UI for admins in Suppliers tab
     if (tabId === 'suppliersTab' && currentUser && currentUser.role === 'admin') {
         const brandTrainingCard = document.getElementById('brandTrainingCard');
         if (brandTrainingCard) {
@@ -1894,7 +2058,14 @@ function switchTab(tabId) {
             }
         }
     }
-    
+
+    // Phase 2 tab loading
+    if (window.Phase2) {
+        if (tabId === 'procBoardTab') Phase2.loadProcurementBoard();
+        if (tabId === 'rfqHistoryTab') Phase2.loadRfqHistory();
+        if (tabId === 'cadTasksTab') Phase2.loadCadTasks();
+        if (tabId === 'systemSettingsTab') Phase2.loadSystemSettings();
+    }
 }
 
 function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c] || c)); }
@@ -2062,7 +2233,7 @@ async function handleProcCreateOrder(e) {
     });
 }
 
-// ⭐ Attach form handlers on DOMContentLoaded
+// Attach form handlers on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
     const procForm = document.getElementById('procCreateOrderForm');
     if (procForm) {
@@ -2074,3 +2245,255 @@ document.addEventListener('DOMContentLoaded', () => {
         cqForm.addEventListener('submit', handleCreateQuote);
     }
 });
+
+// ===================== WORLD-CLASS UPGRADE v3.0 =====================
+
+// === TABLE DENSITY ===
+function initTableDensity() {
+    document.querySelectorAll('.btn-density').forEach(btn => {
+        if (btn.dataset.density === tableDensity) btn.classList.add('active');
+        else btn.classList.remove('active');
+
+        btn.addEventListener('click', () => {
+            tableDensity = btn.dataset.density;
+            localStorage.setItem('pp_table_density', tableDensity);
+            document.querySelectorAll('.btn-density').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderOrdersTable();
+        });
+    });
+}
+
+function getTableDensityClass() {
+    return `table-${tableDensity}`;
+}
+
+// === EXPORT BUTTONS ===
+function initExportButtons() {
+    const btnExport = document.getElementById('btnExport');
+    const exportMenu = document.getElementById('exportMenu');
+    if (btnExport && exportMenu) {
+        btnExport.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exportMenu.classList.toggle('hidden');
+        });
+        document.addEventListener('click', () => exportMenu.classList.add('hidden'));
+    }
+
+    const exportCSV = document.getElementById('exportCSV');
+    if (exportCSV) {
+        exportCSV.addEventListener('click', () => {
+            if (window.ExportManager) window.ExportManager.exportCSV();
+        });
+    }
+
+    const exportPDF = document.getElementById('exportPDF');
+    if (exportPDF) {
+        exportPDF.addEventListener('click', () => {
+            if (window.ExportManager) window.ExportManager.exportListPDF();
+        });
+    }
+
+    // Procurement create order button (new location)
+    const btnProcCreate2 = document.getElementById('btnProcurementCreateOrder2');
+    if (btnProcCreate2) {
+        btnProcCreate2.addEventListener('click', () => {
+            if (typeof openProcCreateOrderModal === 'function') openProcCreateOrderModal();
+        });
+    }
+}
+
+// === BULK ACTIONS ===
+function initBulkActions() {
+    const bulkExportCSV = document.getElementById('bulkExportCSV');
+    if (bulkExportCSV) {
+        bulkExportCSV.addEventListener('click', () => {
+            const selected = ordersState.filter(o => selectedOrderIds.has(o.id));
+            if (selected.length === 0) return;
+            const original = window.filteredOrders;
+            window.filteredOrders = selected;
+            if (window.ExportManager) window.ExportManager.exportCSV();
+            window.filteredOrders = original;
+        });
+    }
+
+    const bulkCreateQuote = document.getElementById('bulkCreateQuote');
+    if (bulkCreateQuote) {
+        bulkCreateQuote.addEventListener('click', () => {
+            if (typeof openCreateQuoteDialog === 'function') openCreateQuoteDialog();
+        });
+    }
+
+    const bulkChangeStatus = document.getElementById('bulkChangeStatus');
+    if (bulkChangeStatus) {
+        bulkChangeStatus.addEventListener('click', async () => {
+            if (selectedOrderIds.size === 0) return;
+            const newStatus = prompt('New status for selected orders:\n' + ORDER_STATUSES.join(', '));
+            if (!newStatus || !ORDER_STATUSES.includes(newStatus)) {
+                if (newStatus) alert('Invalid status. Choose from: ' + ORDER_STATUSES.join(', '));
+                return;
+            }
+            let successCount = 0;
+            for (const id of selectedOrderIds) {
+                try {
+                    const res = await apiPut(`/orders/${id}`, { status: newStatus });
+                    if (res.success) successCount++;
+                } catch (err) { console.error(`Failed to update order #${id}`, err); }
+            }
+            if (window.Toast) window.Toast.show(`Updated ${successCount} orders to "${newStatus}"`, 'success');
+            selectedOrderIds.clear();
+            loadOrders();
+        });
+    }
+}
+
+// === ENHANCED SELECTION UI ===
+// Override updateSelectionUi to also update bulk actions bar
+const _originalUpdateSelectionUi = typeof updateSelectionUi === 'function' ? updateSelectionUi : null;
+function updateSelectionUi() {
+    const count = selectedOrderIds.size;
+    if (orderActionsBar) {
+        if (count > 0) { orderActionsBar.hidden = false; selectedCount.textContent = `${count} selected`; }
+        else { orderActionsBar.hidden = true; }
+    }
+    // Bulk actions bar
+    const bulkBar = document.getElementById('bulkActionsBar');
+    const bulkCount = document.getElementById('bulkCount');
+    if (bulkBar && bulkCount) {
+        if (count > 0) {
+            bulkBar.classList.remove('hidden');
+            bulkCount.textContent = `${count} selected`;
+        } else {
+            bulkBar.classList.add('hidden');
+        }
+    }
+}
+
+// === RENDER DASHBOARD SUMMARY ===
+function renderDashboardSummary() {
+    if (window.DashboardWidgets) {
+        window.DashboardWidgets.render('dashboardSummary');
+    }
+}
+
+// === ENHANCED FILTER: extended with date range and more quick filters ===
+const _originalApplyFilters = applyFilters;
+// Monkey-patch applyFilters to also handle date range and active chips
+const _origFilterFn = applyFilters;
+
+// We need to extend applyFilters. Since it's already defined above, we add extra logic
+// by wrapping the filter chain. The new quick filters (myorders, today) and date range
+// filters are applied in a post-filter hook.
+(function() {
+    const origApply = window.applyFilters || applyFilters;
+    // Can't easily override — instead, inject filter logic via the quick filter handler
+    // The existing quickFilter handler already checks for 'late', 'due7', 'due14', 'new', 'ordered', 'transit'
+    // We need to add 'myorders' and 'today'
+})();
+
+// Extend the quick-filter chip handler for new filters
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.quick-filter-chip[data-filter="myorders"], .quick-filter-chip[data-filter="today"]').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const filter = chip.dataset.filter;
+            if (filterState.quickFilter === filter) {
+                filterState.quickFilter = '';
+                chip.classList.remove('active');
+            } else {
+                document.querySelectorAll('.quick-filter-chip').forEach(c => c.classList.remove('active'));
+                filterState.quickFilter = filter;
+                chip.classList.add('active');
+            }
+            currentPage = 1;
+            applyFilters();
+        });
+    });
+});
+
+// === COMMENTS LOADING ===
+async function loadOrderComments(orderId) {
+    try {
+        const res = await fetch(`/api/comments/${orderId}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+        if (data.success) return data.comments || [];
+    } catch (err) {
+        console.error('Load comments error:', err);
+    }
+    return [];
+}
+
+async function addOrderComment(orderId, comment) {
+    try {
+        const res = await fetch(`/api/comments/${orderId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ comment })
+        });
+        return await res.json();
+    } catch (err) {
+        console.error('Add comment error:', err);
+        return { success: false };
+    }
+}
+
+// === RENDER COMMENTS IN ORDER DETAIL ===
+async function renderCommentsSection(orderId) {
+    const container = document.getElementById('commentsContainer');
+    if (!container) return;
+
+    container.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div></div>';
+
+    const comments = await loadOrderComments(orderId);
+
+    let html = '<div class="comments-section">';
+    if (comments.length === 0) {
+        html += '<div class="empty-state" style="padding:1rem;"><span class="empty-icon">💬</span><span class="empty-description">No comments yet</span></div>';
+    } else {
+        comments.forEach(c => {
+            const time = c.created_at ? new Date(c.created_at).toLocaleString() : '';
+            html += `<div class="comment-item">
+                <div class="comment-header">
+                    <span class="comment-author">${escapeHtml(c.user_name)}</span>
+                    <span class="comment-time">${time}</span>
+                </div>
+                <div class="comment-body">${escapeHtml(c.comment)}</div>
+            </div>`;
+        });
+    }
+
+    html += `<div class="comment-input-group">
+        <textarea id="newCommentInput" class="form-control form-control-sm" placeholder="Add a comment..." rows="1"></textarea>
+        <button class="btn btn-primary btn-sm" id="btnAddComment">Send</button>
+    </div>`;
+    html += '</div>';
+
+    container.innerHTML = html;
+
+    const btnAdd = document.getElementById('btnAddComment');
+    if (btnAdd) {
+        btnAdd.addEventListener('click', async () => {
+            const input = document.getElementById('newCommentInput');
+            const text = input ? input.value.trim() : '';
+            if (!text) return;
+            const res = await addOrderComment(orderId, text);
+            if (res.success) {
+                if (window.Toast) window.Toast.show('Comment added', 'success');
+                renderCommentsSection(orderId);
+            } else {
+                if (window.Toast) window.Toast.show('Failed to add comment', 'error');
+            }
+        });
+    }
+}
+
+// === COPY ORDER ID ===
+function copyOrderId(id) {
+    navigator.clipboard.writeText(`#${id}`).then(() => {
+        if (window.Toast) window.Toast.show(`Order #${id} copied`, 'info');
+    }).catch(() => {});
+}

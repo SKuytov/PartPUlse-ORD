@@ -92,6 +92,9 @@ exports.getOrders = async (req, res) => {
                    u_assigned.name as assigned_to_name,
                    u_assigned.username as assigned_to_username,
                    TIMESTAMPDIFF(MINUTE, o.last_activity_at, NOW()) as minutes_since_activity,
+                   u_claimer.name as claimed_by_name,
+                   u_claimer.username as claimed_by_username,
+                   u_cad.name as cad_assigned_to_name,
                    GROUP_CONCAT(
                        DISTINCT JSON_OBJECT(
                            'id', f.id,
@@ -114,6 +117,8 @@ exports.getOrders = async (req, res) => {
             LEFT JOIN quotes q ON o.quote_ref = q.id
             LEFT JOIN cost_centers cc ON o.cost_center_id = cc.id
             LEFT JOIN users u_assigned ON o.assigned_to_user_id = u_assigned.id
+            LEFT JOIN users u_claimer ON o.claimed_by_user_id = u_claimer.id
+            LEFT JOIN users u_cad ON o.cad_assigned_to_user_id = u_cad.id
             LEFT JOIN order_documents_link odl ON o.id = odl.order_id
             LEFT JOIN documents d ON odl.document_id = d.id
         `;
@@ -235,12 +240,17 @@ exports.getOrderById = async (req, res) => {
                    u_assigned.name as assigned_to_name,
                    u_assigned.username as assigned_to_username,
                    u_assigned.email as assigned_to_email,
-                   TIMESTAMPDIFF(MINUTE, o.last_activity_at, NOW()) as minutes_since_activity
+                   TIMESTAMPDIFF(MINUTE, o.last_activity_at, NOW()) as minutes_since_activity,
+                   u_claimer.name as claimed_by_name,
+                   u_claimer.username as claimed_by_username,
+                   u_cad.name as cad_assigned_to_name
             FROM orders o
             LEFT JOIN suppliers s ON o.supplier_id = s.id
             LEFT JOIN quotes q ON o.quote_ref = q.id
             LEFT JOIN cost_centers cc ON o.cost_center_id = cc.id
             LEFT JOIN users u_assigned ON o.assigned_to_user_id = u_assigned.id
+            LEFT JOIN users u_claimer ON o.claimed_by_user_id = u_claimer.id
+            LEFT JOIN users u_cad ON o.cad_assigned_to_user_id = u_cad.id
             WHERE o.id = ?
         `, [id]);
 
@@ -353,7 +363,8 @@ exports.updateOrder = async (req, res) => {
             'unit_price', 'total_price', 'assigned_to', 'priority',
             'expected_delivery_date', 'notes', 'part_number', 'category',
             'cost_center_id',
-            'supplier_notes', 'alternative_product_name', 'alternative_product_description'
+            'supplier_notes', 'alternative_product_name', 'alternative_product_description',
+            'requires_cad', 'assigned_supplier_name', 'assigned_supplier_id'
         ];
 
         const updateFields = [];
