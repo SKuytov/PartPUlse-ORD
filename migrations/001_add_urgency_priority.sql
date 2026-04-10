@@ -1,13 +1,46 @@
 -- Migration 001: Add urgency/priority enhancements and equipment linking
 -- PartPulse World-Class Upgrade
+-- Compatible with MySQL 5.7+
 
--- Add equipment/machine linking to orders
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS equipment_id VARCHAR(100) DEFAULT NULL AFTER priority;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS equipment_name VARCHAR(255) DEFAULT NULL AFTER equipment_id;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS sla_status ENUM('on_track', 'at_risk', 'overdue') DEFAULT NULL AFTER expected_delivery_date;
+-- Add equipment/machine linking to orders (safe for older MySQL)
+SET @dbname = DATABASE();
 
--- Add department field to orders for better filtering
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT NULL AFTER building;
+-- equipment_id
+SET @col = 'equipment_id';
+SET @tbl = 'orders';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(100) DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- equipment_name
+SET @col = 'equipment_name';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(255) DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- sla_status
+SET @col = 'sla_status';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` ENUM(\'on_track\',\'at_risk\',\'overdue\') DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- department
+SET @col = 'department';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(100) DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Create equipment registry table
 CREATE TABLE IF NOT EXISTS equipment (
@@ -21,6 +54,6 @@ CREATE TABLE IF NOT EXISTS equipment (
     active TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_building (building),
-    INDEX idx_active (active)
+    INDEX idx_eq_building (building),
+    INDEX idx_eq_active (active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -1,8 +1,45 @@
 -- Migration 009: Order Claiming & Locking
--- Adds claim tracking and help request fields to orders
+-- Compatible with MySQL 5.7+
 
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS claimed_by_user_id INT NULL;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMP NULL;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS claim_auto_release_hours INT NOT NULL DEFAULT 4;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS help_requested BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS help_request_note TEXT NULL;
+SET @dbname = DATABASE();
+SET @tbl = 'orders';
+
+SET @col = 'claimed_by_user_id';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` INT DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = 'claimed_at';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TIMESTAMP NULL DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = 'claim_auto_release_hours';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` INT NOT NULL DEFAULT 4'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = 'help_requested';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TINYINT(1) NOT NULL DEFAULT 0'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = 'help_request_note';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TEXT DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

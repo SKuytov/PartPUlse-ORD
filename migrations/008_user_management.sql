@@ -1,16 +1,37 @@
 -- Migration 008: Enhanced User Management
--- Adds multi-role support, invite tokens, and ensures active column exists
+-- Compatible with MySQL 5.7+
 
--- roles JSON column for multi-role support (e.g. ["procurement","cad_designer","admin"])
-ALTER TABLE users ADD COLUMN IF NOT EXISTS roles JSON;
+SET @dbname = DATABASE();
+SET @tbl = 'users';
 
--- Invite token support
-ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_token VARCHAR(64);
-ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_expires_at TIMESTAMP NULL;
+SET @col = 'roles';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` JSON DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- Last login tracking
-ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP NULL;
+SET @col = 'invite_token';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(64) DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- Ensure active column exists (may already exist)
--- ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
--- Note: 'active' column already exists in the users table from the original schema
+SET @col = 'invite_expires_at';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TIMESTAMP NULL DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = 'last_login_at';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TIMESTAMP NULL DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

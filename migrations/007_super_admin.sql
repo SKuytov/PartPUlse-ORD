@@ -1,7 +1,13 @@
 -- Migration 007: Super Admin Role
--- Adds is_super_admin flag to users table
+-- Compatible with MySQL 5.7+
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN NOT NULL DEFAULT FALSE;
+SET @dbname = DATABASE();
+SET @tbl = 'users';
 
--- App-level enforcement ensures only one super admin exists.
--- The first user marked as super_admin becomes the sole super admin.
+SET @col = 'is_super_admin';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TINYINT(1) NOT NULL DEFAULT 0'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

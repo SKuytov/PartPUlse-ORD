@@ -1,8 +1,7 @@
--- PartPulse Orders - World Class Upgrade Migration
--- Version: 1.0
--- Date: 2026-04-09
--- Description: Adds tables and columns for notifications, saved filters,
---              equipment tracking, comments, user preferences, and budgets
+-- Migration 001b: World Class Upgrade - tables and columns
+-- Compatible with MySQL 5.7+
+
+SET @dbname = DATABASE();
 
 -- ============================================
 -- 1. NOTIFICATIONS TABLE
@@ -10,7 +9,7 @@
 CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    type ENUM('status_change', 'approval_needed', 'approval_result', 'overdue', 'delivery_today', 'comment', 'assignment', 'system') NOT NULL,
+    type ENUM('status_change','approval_needed','approval_result','overdue','delivery_today','comment','assignment','system') NOT NULL,
     title VARCHAR(255) NOT NULL,
     message TEXT,
     related_order_id INT DEFAULT NULL,
@@ -33,7 +32,7 @@ CREATE TABLE IF NOT EXISTS saved_filters (
     is_default TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_user (user_id),
+    INDEX idx_sf_user (user_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -47,7 +46,7 @@ CREATE TABLE IF NOT EXISTS order_comments (
     user_name VARCHAR(100) NOT NULL,
     comment TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_order (order_id),
+    INDEX idx_oc_order (order_id),
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -58,7 +57,7 @@ CREATE TABLE IF NOT EXISTS order_comments (
 CREATE TABLE IF NOT EXISTS user_preferences (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL UNIQUE,
-    table_density ENUM('compact', 'comfortable', 'spacious') DEFAULT 'comfortable',
+    table_density ENUM('compact','comfortable','spacious') DEFAULT 'comfortable',
     visible_columns JSON DEFAULT NULL,
     default_filter_id INT DEFAULT NULL,
     notifications_enabled TINYINT(1) DEFAULT 1,
@@ -74,7 +73,7 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
--- 5. EQUIPMENT / MACHINE TABLE
+-- 5. EQUIPMENT / MACHINE TABLE (if not already created by 001)
 -- ============================================
 CREATE TABLE IF NOT EXISTS equipment (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -86,23 +85,42 @@ CREATE TABLE IF NOT EXISTS equipment (
     model VARCHAR(200),
     serial_number VARCHAR(200),
     install_date DATE,
-    status ENUM('operational', 'down', 'maintenance', 'retired') DEFAULT 'operational',
-    criticality ENUM('critical', 'high', 'medium', 'low') DEFAULT 'medium',
+    status ENUM('operational','down','maintenance','retired') DEFAULT 'operational',
+    criticality ENUM('critical','high','medium','low') DEFAULT 'medium',
     notes TEXT,
     active TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_building (building_code),
-    INDEX idx_status (status)
+    INDEX idx_eq2_building (building_code),
+    INDEX idx_eq2_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
 -- 6. ADD EQUIPMENT COLUMNS TO ORDERS
 -- ============================================
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS equipment_id INT DEFAULT NULL AFTER category;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS machine_down TINYINT(1) DEFAULT 0 AFTER equipment_id;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS estimated_downtime_hours DECIMAL(10,2) DEFAULT NULL AFTER machine_down;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS pinned TINYINT(1) DEFAULT 0 AFTER estimated_downtime_hours;
+SET @col = 'machine_down'; SET @tbl = 'orders';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TINYINT(1) DEFAULT 0'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = 'estimated_downtime_hours';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` DECIMAL(10,2) DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = 'pinned';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` TINYINT(1) DEFAULT 0'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ============================================
 -- 7. DEPARTMENT BUDGETS TABLE
@@ -119,24 +137,47 @@ CREATE TABLE IF NOT EXISTS department_budgets (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY unique_budget (building_code, cost_center_id, fiscal_year, fiscal_quarter),
-    INDEX idx_year (fiscal_year)
+    INDEX idx_db_year (fiscal_year)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
--- 8. ADD INVOICE STATUS COLUMNS
+-- 8. ADD INVOICE STATUS COLUMNS (safe)
 -- ============================================
-ALTER TABLE invoices ADD COLUMN IF NOT EXISTS due_date DATE DEFAULT NULL AFTER invoice_date;
-ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_date DATE DEFAULT NULL AFTER due_date;
-ALTER TABLE invoices ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT NULL AFTER payment_date;
-ALTER TABLE invoices ADD COLUMN IF NOT EXISTS cost_center_id INT DEFAULT NULL AFTER department;
+SET @tbl = 'invoices';
+SET @col = 'due_date';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` DATE DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = 'payment_date';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` DATE DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = 'department';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` VARCHAR(100) DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = 'cost_center_id';
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@dbname AND TABLE_NAME=@tbl AND COLUMN_NAME=@col) = 0,
+  CONCAT('ALTER TABLE `', @tbl, '` ADD COLUMN `', @col, '` INT DEFAULT NULL'),
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ============================================
--- 9. PINNED ORDERS INDEX
--- ============================================
-ALTER TABLE orders ADD INDEX IF NOT EXISTS idx_pinned (pinned);
-
--- ============================================
--- 10. SEED SAMPLE EQUIPMENT DATA
+-- 9. SEED SAMPLE EQUIPMENT DATA
 -- ============================================
 INSERT IGNORE INTO equipment (code, name, building_code, status, criticality) VALUES
 ('EQ-001', 'Main Production Line A', 'CT', 'operational', 'critical'),
